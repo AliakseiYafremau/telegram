@@ -38,11 +38,12 @@ class TelegramBot(TeleBot):
         try:
             self.database = sqlite3.connect('database.db')
             self.cursor = self.database.cursor()
-            self.cursor.execute("CREATE TABLE IF NOT EXISTS user_{0}("
+            self.cursor.execute("CREATE TABLE IF NOT EXISTS users("
                                 "name text,"
-                                "grades text)".format(self.client.id))
+                                "grades text,"
+                                "user text)".format(self.client.id))
             print('[INFO] Creating of table of user')
-            lessons = info('name', 'user_{0}'.format(self.client.id))
+            lessons = info('name', 'users'.format(self.client.id))
             keyboard = []
             for el in [x[0] for x in lessons]:
                 button = types.InlineKeyboardButton(text='Перейти в {0}'.format(el), callback_data='to_{0}'.format(el))
@@ -74,16 +75,16 @@ class TelegramBot(TeleBot):
         self.register_next_step_handler(message, self.create_new_lesson)
 
     def create_new_lesson(self, message):
-        print('[INFO] Attempt to create a new lesson ({0})'.format(message.from_user.id)')
+        print('[INFO] Attempt to create a new lesson ({0})'.format(message.from_user.id))
         try:
             self.database = sqlite3.connect('database.db')
             self.cursor = self.database.cursor()
-            self.cursor.execute("SELECT COUNT(*) FROM user_{0} WHERE name= '{1}'".format(self.client.id, message.text))
+            self.cursor.execute("SELECT COUNT(*) FROM users WHERE (name= '{0}', user='{1}')".format(message.text, self.client.id))
             result = self.cursor.fetchone()
             if result[0] > 0:
                 self.send_message(message.chat.id, 'Урок с таким именем уже существует')
             else:
-                self.cursor.execute("INSERT INTO user_{0} VALUES {1}".format(self.client.id, (message.text, '')))
+                self.cursor.execute("INSERT INTO users VALUES {1}".format((message.text, '', self.client)))
                 self.send_message(message.chat.id, 'Урок  c именем {0} был создан'.format(message.text))
         except Exception as e:
             print('[ERROR] Create_New_Lesson: ', e)
@@ -155,8 +156,8 @@ class TelegramBot(TeleBot):
             old = self.lessons[self.i][1]
             new_value = helper.quit_number(old, message.text)
             if new_value != -1:
-                cursor.execute("UPDATE user_{0} SET grades='{1}' WHERE name='{2}'"
-                               .format(self.client.id, new_value, lesson))
+                cursor.execute("UPDATE users SET grades='{0}' WHERE name='{1}', user='{2}"
+                               .format(new_value, lesson))
             else:
                 self.send_message(message.chat.id, 'Такой оценки не существует')
         finally:
